@@ -1,0 +1,15 @@
+{
+  "extends": "expo/tsconfig.base",
+  "compilerOptions": {
+    "strict": true,
+    "noEmit": true,                         // tsc only for types; Babel/Metro does the build
+    "jsx": "react-jsx",                     // new JSX transform
+    "moduleResolution": "bundler",          // matches Metro/Expo resolution in SDK 53
+    "allowSyntheticDefaultImports": true,
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "target": "ES2020",
+    "lib": ["ES2021"],
+    "baseUrl": "."
+  }
+}

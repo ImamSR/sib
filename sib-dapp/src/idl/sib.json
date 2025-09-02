@@ -1,0 +1,244 @@
+{
+  "address": "HqJ3a7UwwxjorwDJUYMAWBC8Q4fRzqF47Pgq5fjr3D1F",
+  "metadata": {
+    "name": "sib",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "Created with Anchor"
+  },
+  "instructions": [
+    {
+      "name": "add_certificate",
+      "docs": [
+        "Create a new certificate (Ijazah).",
+        "- management = uploader wallet (Signer)",
+        "- operator_pubkey = same as uploader",
+        "- operator_name = human-readable",
+        "- file_uri + file_hash (SHA-256) for the document"
+      ],
+      "discriminator": [
+        10,
+        109,
+        208,
+        255,
+        213,
+        21,
+        138,
+        255
+      ],
+      "accounts": [
+        {
+          "name": "certificate",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  101,
+                  114,
+                  116
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "nomor_ijazah"
+              }
+            ]
+          }
+        },
+        {
+          "name": "operator",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "program_studi",
+          "type": "string"
+        },
+        {
+          "name": "universitas",
+          "type": "string"
+        },
+        {
+          "name": "kode_batch",
+          "type": "string"
+        },
+        {
+          "name": "nim",
+          "type": "string"
+        },
+        {
+          "name": "nama",
+          "type": "string"
+        },
+        {
+          "name": "nomor_ijazah",
+          "type": "string"
+        },
+        {
+          "name": "operator_name",
+          "type": "string"
+        },
+        {
+          "name": "file_uri",
+          "type": "string"
+        },
+        {
+          "name": "file_hash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "update_file",
+      "docs": [
+        "Update/attach file later (only the same uploader wallet)."
+      ],
+      "discriminator": [
+        222,
+        94,
+        111,
+        3,
+        140,
+        241,
+        125,
+        97
+      ],
+      "accounts": [
+        {
+          "name": "certificate",
+          "writable": true
+        },
+        {
+          "name": "operator",
+          "docs": [
+            "The same uploader wallet that created the cert"
+          ],
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "new_uri",
+          "type": "string"
+        },
+        {
+          "name": "new_hash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "name": "Certificate",
+      "discriminator": [
+        202,
+        229,
+        222,
+        220,
+        116,
+        20,
+        74,
+        67
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "StringTooLong",
+      "msg": "Provided string exceeds the allowed maximum length for its field."
+    },
+    {
+      "code": 6001,
+      "name": "NotAuthorized",
+      "msg": "You are not authorized to modify this certificate."
+    }
+  ],
+  "types": [
+    {
+      "name": "Certificate",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "management",
+            "type": "pubkey"
+          },
+          {
+            "name": "operator_pubkey",
+            "type": "pubkey"
+          },
+          {
+            "name": "operator_name",
+            "type": "string"
+          },
+          {
+            "name": "program_studi",
+            "type": "string"
+          },
+          {
+            "name": "universitas",
+            "type": "string"
+          },
+          {
+            "name": "kode_batch",
+            "type": "string"
+          },
+          {
+            "name": "waktu_masuk",
+            "type": "i64"
+          },
+          {
+            "name": "nim",
+            "type": "string"
+          },
+          {
+            "name": "nama",
+            "type": "string"
+          },
+          {
+            "name": "nomor_ijazah",
+            "type": "string"
+          },
+          {
+            "name": "file_uri",
+            "type": "string"
+          },
+          {
+            "name": "file_hash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,46 @@
+{
+  "expo": {
+    "name": "sib-scanner",
+    "slug": "sib-scanner",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.anonymous.sibscanner",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Scan QR codes to verify certificates."
+      }
+    },
+
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "edgeToEdgeEnabled": true,
+      "permissions": ["android.permission.CAMERA"],
+      "package": "com.anonymous.sibscanner"
+    },
+
+    "web": { "favicon": "./assets/favicon.png" },
+
+    "plugins": [
+      ["expo-camera", {
+        "cameraPermission": "Allow $(PRODUCT_NAME) to access your camera to scan QR codes"
+      }]
+    ],
+
+    "extra": {
+      "eas": { "projectId": "3535c5aa-d9c3-42b6-a7a8-f2d62c6ebf80" }
+    }
+  }
+}
