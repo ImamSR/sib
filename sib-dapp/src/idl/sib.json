@@ -8,6 +8,52 @@
   },
   "instructions": [
     {
+      "name": "add_admin",
+      "docs": [
+        "Add an admin (only super_admin can call)."
+      ],
+      "discriminator": [
+        177,
+        236,
+        33,
+        205,
+        124,
+        152,
+        55,
+        186
+      ],
+      "accounts": [
+        {
+          "name": "admin_registry",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  97,
+                  100,
+                  109,
+                  105,
+                  110
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "super_admin",
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "new_admin",
+          "type": "pubkey"
+        }
+      ]
+    },
+    {
       "name": "add_certificate",
       "docs": [
         "Create a new certificate (Ijazah).",
@@ -44,6 +90,23 @@
               {
                 "kind": "arg",
                 "path": "nomor_ijazah"
+              }
+            ]
+          }
+        },
+        {
+          "name": "admin_registry",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  97,
+                  100,
+                  109,
+                  105,
+                  110
+                ]
               }
             ]
           }
@@ -103,6 +166,103 @@
       ]
     },
     {
+      "name": "init_admin_registry",
+      "docs": [
+        "Initialize AdminRegistry PDA with a super admin."
+      ],
+      "discriminator": [
+        166,
+        91,
+        100,
+        40,
+        31,
+        42,
+        62,
+        42
+      ],
+      "accounts": [
+        {
+          "name": "admin_registry",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  97,
+                  100,
+                  109,
+                  105,
+                  110
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "super_admin",
+          "type": "pubkey"
+        }
+      ]
+    },
+    {
+      "name": "remove_admin",
+      "docs": [
+        "Remove an admin (only super_admin can call)."
+      ],
+      "discriminator": [
+        74,
+        202,
+        71,
+        106,
+        252,
+        31,
+        72,
+        183
+      ],
+      "accounts": [
+        {
+          "name": "admin_registry",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  97,
+                  100,
+                  109,
+                  105,
+                  110
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "super_admin",
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "old_admin",
+          "type": "pubkey"
+        }
+      ]
+    },
+    {
       "name": "update_file",
       "docs": [
         "Update/attach file later (only the same uploader wallet)."
@@ -149,6 +309,19 @@
   ],
   "accounts": [
     {
+      "name": "AdminRegistry",
+      "discriminator": [
+        163,
+        108,
+        201,
+        205,
+        231,
+        169,
+        240,
+        157
+      ]
+    },
+    {
       "name": "Certificate",
       "discriminator": [
         202,
@@ -171,10 +344,37 @@
     {
       "code": 6001,
       "name": "NotAuthorized",
-      "msg": "You are not authorized to modify this certificate."
+      "msg": "You are not authorized to perform this action."
+    },
+    {
+      "code": 6002,
+      "name": "AdminListFull",
+      "msg": "Admin list is full."
     }
   ],
   "types": [
+    {
+      "name": "AdminRegistry",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "super_admin",
+            "type": "pubkey"
+          },
+          {
+            "name": "admins",
+            "type": {
+              "vec": "pubkey"
+            }
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
     {
       "name": "Certificate",
       "type": {

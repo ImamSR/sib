@@ -1,54 +1,81 @@
-/* main.css */
 @import "tailwindcss";
-/* ... other global styles ... */
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer components {
-  /* Scanner container */
-  #qr-reader {
-    @apply w-full max-w-[680px] mx-auto;
+  /* Scanner surfaces (camera & file preview roots) */
+  #qr-region,
+  #qr-file-region {
+    @apply relative w-full overflow-hidden rounded-2xl border border-white/20 bg-black/90 backdrop-blur-sm dark:border-white/10;
   }
 
-  /* Dashboard area (buttons/links) */
-  #qr-reader__dashboard {
-    @apply !bg-white !p-3 !rounded-lg;
+  /* Optional: html5-qrcode injected canvas/video fit */
+  #qr-region video,
+  #qr-file-region img,
+  #qr-file-region canvas {
+    @apply block h-full w-full object-contain;
   }
 
-  /* “Request Camera Permissions” button */
-  #qr-reader__camera_permission_button,
-  #qr-reader__camera_stop {
-    @apply !rounded-md !bg-indigo-600 !px-3 !py-2 !text-sm !font-medium !text-white hover:!bg-indigo-700;
+  /* Fancy scan frame (we render a div overlay in React with qr-scan-frame) */
+  .qr-scan-frame {
+    position: relative;
+    box-shadow:
+      inset 0 0 0 2px rgba(255,255,255,0.45),
+      0 0 0 1px rgba(255,255,255,0.12);
+  }
+  .qr-scan-frame::before {
+    content: "";
+    position: absolute;
+    inset: -2px;
+    border-radius: inherit;
+    background:
+      conic-gradient(from 90deg,
+        rgba(99,102,241,0.0),
+        rgba(99,102,241,0.8),
+        rgba(168,85,247,0.8),
+        rgba(34,211,238,0.8),
+        rgba(99,102,241,0.0)
+      );
+    -webkit-mask:
+      linear-gradient(#000,#000) content-box,
+      linear-gradient(#000,#000);
+    -webkit-mask-composite: xor;
+            mask-composite: exclude;
+    padding: 2px;
+    filter: blur(4px);
+    opacity: .55;
+    pointer-events: none;
   }
 
-  /* “Scan an Image File” link */
-  #html5-qrcode-anchor-scan-type-change,
-  #qr-reader__scan_type_change {
-    @apply !text-indigo-600 hover:!text-indigo-700 !no-underline;
+  /* Optional subtle animated sweep line */
+  .qr-scan-surface::after {
+    content: "";
+    position: absolute;
+    left: 10%;
+    right: 10%;
+    top: 20%;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,.9), transparent);
+    animation: qrsweep 2.4s linear infinite;
+    opacity: .7;
   }
+  @keyframes qrsweep {
+    0% { top: 20%; }
+    100% { top: 80%; }
+  }
+}
 
-  /* Camera select, zoom, torch controls */
-  #qr-reader select,
-  #qr-reader input[type="range"] {
-    @apply !rounded-md !border !border-gray-300 !text-sm;
-  }
+/* Make sure the wallet modal & dropdown are always on top */
+:root {
+  --wallet-adapter-modal-z-index: 9999; /* supported by latest adapter */
+}
 
-  /* The scanning region frame */
-  #qr-reader__scan_region {
-    @apply !rounded-lg !border !border-gray-200;
-  }
-
-  /* Small info icon in the top-right */
-  #qr-reader .reader-info {
-    @apply !opacity-60;
-  }
-
-  /* Typography unify */
-  #qr-reader,
-  #qr-reader * {
-    font-family: inherit !important;
-  }
+/* Hard override for all adapter overlays/popovers */
+.wallet-adapter-modal,
+.wallet-adapter-modal-overlay,
+.wallet-adapter-dropdown,
+.wallet-adapter-dropdown-list {
+  z-index: 9999 !important;
 }
 
