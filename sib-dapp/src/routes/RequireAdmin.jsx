@@ -7,14 +7,12 @@ export default function RequireAdmin({ children }) {
   const wallet = useWallet();
   const { loading, initialized, isAdmin } = useAdmin();
 
-  // must be connected
   if (!wallet.connected) {
     return <div className="mx-auto max-w-md rounded border bg-white p-4 text-sm">
       Please connect a wallet to access the admin area.
     </div>;
   }
 
-  // don't redirect while loading
   if (loading) {
     return <div className="mx-auto max-w-md rounded border bg-white p-4 text-sm">
       Checking admin permission…
@@ -28,7 +26,6 @@ export default function RequireAdmin({ children }) {
   }
 
   if (!isAdmin) {
-    console.warn("RequireAdmin: Not admin – redirecting to /verify");
     return <Navigate to="/verify" replace />;
   }
 

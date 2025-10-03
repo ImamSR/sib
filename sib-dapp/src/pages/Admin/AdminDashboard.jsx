@@ -1,6 +1,15 @@
 import { useEffect, useState, useRef } from "react";
 import { QRCodeCanvas, QRCodeSVG } from "qrcode.react";
-import { short, ts } from "../../lib/program";
+
+const short = (s, head = 4, tail = 4) =>
+  s ? `${String(s).slice(0, head)}…${String(s).slice(-tail)}` : "";
+
+const ts = (unix) => {
+  if (!unix) return "—";
+  const d = new Date(Number(unix) * 1000);
+  if (Number.isNaN(d.getTime())) return "—";
+  return d.toLocaleString();
+};
 
 function normalizeCert(a) {
   return {

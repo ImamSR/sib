@@ -66,16 +66,4 @@
   }
 }
 
-/* Make sure the wallet modal & dropdown are always on top */
-:root {
-  --wallet-adapter-modal-z-index: 9999; /* supported by latest adapter */
-}
-
-/* Hard override for all adapter overlays/popovers */
-.wallet-adapter-modal,
-.wallet-adapter-modal-overlay,
-.wallet-adapter-dropdown,
-.wallet-adapter-dropdown-list {
-  z-index: 9999 !important;
-}
 

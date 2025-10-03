@@ -4,8 +4,8 @@ import { Program, AnchorProvider, web3 } from "@coral-xyz/anchor";
 import idl from "../idl/sib.json";
 import CertificateDetailsCard from "./CertificateDetailsCard.jsx";
 
-const programID = new web3.PublicKey("HqJ3a7UwwxjorwDJUYMAWBC8Q4fRzqF47Pgq5fjr3D1F");
-const connection = new web3.Connection("https://api.devnet.solana.com");
+const RPC = import.meta.env.VITE_RPC_URL || "https://api.devnet.solana.com";
+const connection = new web3.Connection(RPC, "confirmed");
 const LS_CAMERA_KEY = "qr_last_camera_id";
 
 // UI tokens (same family as other pages)

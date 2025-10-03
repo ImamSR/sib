@@ -124,7 +124,7 @@ export default function AdminIndex() {
           >
             Certificates
           </TabButton>
-          <TabButton
+          {/* <TabButton
             id="admins"
             active={tab === "admins"}
             onClick={setTab}
@@ -135,7 +135,7 @@ export default function AdminIndex() {
             )}
           >
             Manage Admins
-          </TabButton>
+          </TabButton> */}
         </div>
       </div>
 

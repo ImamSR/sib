@@ -1,6 +1,6 @@
+// src/pages/AdminAddCertificate.jsx
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
-import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
 import "@solana/wallet-adapter-react-ui/styles.css";
 
 import { Program, AnchorProvider, web3 } from "@coral-xyz/anchor";
@@ -8,13 +8,13 @@ import idl from "../../idl/sib.json";
 import { QRCodeCanvas } from "qrcode.react";
 import { saveCertificateWithFile } from "../../lib/SaveCertificate";
 import { useAdmin } from "../../hooks/useAdmin";
-import * as XLSX from 'xlsx';
+import * as XLSX from "xlsx";
 
-const programID = new web3.PublicKey("HqJ3a7UwwxjorwDJUYMAWBC8Q4fRzqF47Pgq5fjr3D1F");
-const connection = new web3.Connection("https://api.devnet.solana.com");
+const RPC = import.meta.env.VITE_RPC_URL || "https://api.devnet.solana.com";
+const connection = new web3.Connection(RPC, "confirmed");
 
 const shorten = (k) => (k ? `${k.slice(0, 4)}…${k.slice(-4)}` : "");
-const isImage = (type) => /^image\//.test(type);
+const isImage = (type) => /^image\//.test(type || "");
 
 const panelCard =
   "rounded-2xl border border-white/20 bg-white/60 p-6 shadow-xl ring-1 ring-black/5 backdrop-blur-xl dark:border-white/10 dark:bg-slate-900/40";
@@ -24,7 +24,7 @@ const headingGrad =
 export default function AdminAddCertificate() {
   const wallet = useWallet();
 
-  // Provider/Program
+  // Provider/Program (memoized)
   const provider = useMemo(() => {
     if (!wallet) return null;
     return new AnchorProvider(connection, wallet, { commitment: "confirmed" });
@@ -60,7 +60,7 @@ export default function AdminAddCertificate() {
   const [successMsg, setSuccessMsg] = useState("");
   const [copied, setCopied] = useState(false);
   const qrRef = useRef(null);
-  
+
   const [nowPreview, setNowPreview] = useState(() => new Date());
   useEffect(() => {
     const t = setInterval(() => setNowPreview(new Date()), 1000);
@@ -70,8 +70,9 @@ export default function AdminAddCertificate() {
   const pdaPreview = useMemo(() => {
     try {
       if (!form.nomor_ijazah) return "";
+      const toSeed = (v) => Buffer.from(String(v), "utf8");
       const [certPda] = web3.PublicKey.findProgramAddressSync(
-        [Buffer.from("cert"), Buffer.from(form.nomor_ijazah)],
+        [Buffer.from("cert"), toSeed(form.nomor_ijazah)],
         programID
       );
       return certPda.toBase58();
@@ -131,18 +132,23 @@ export default function AdminAddCertificate() {
     setForm((f) => ({ ...f, [name]: value }));
   };
 
+  // ---- VALIDATION (error string pattern) ----
   const validateStep0 = () => {
-    const safeTrim = (val) => String(val ?? '').trim();
-    
-    return (
-      safeTrim(form.nama).length > 0 &&
-      safeTrim(form.nim).length > 0 &&
-      safeTrim(form.program_studi).length > 0 &&
-      safeTrim(form.universitas).length > 0 &&
-      safeTrim(form.kode_batch).length > 0 &&
-      safeTrim(form.nomor_ijazah).length > 0 &&
-      safeTrim(form.operator_name).length > 0
-    );
+    const req = [
+      ["nama", "Nama"],
+      ["nim", "NIM"],
+      ["program_studi", "Program Studi"],
+      ["universitas", "Universitas"],
+      ["kode_batch", "Kode Batch"],
+      ["nomor_ijazah", "Nomor Ijazah"],
+      ["operator_name", "Nama Operator"],
+    ];
+    for (const [key, label] of req) {
+      if (!String(form[key] ?? "").trim()) {
+        return `Field "${label}" is required.`;
+      }
+    }
+    return "";
   };
   const canNextFromStep0 = validateStep0() === "";
 
@@ -184,7 +190,7 @@ export default function AdminAddCertificate() {
           kode_batch: form.kode_batch,
           nim: form.nim,
           nama: form.nama,
-          nomor_ijazah: form.nomor_ijazah,
+          nomor_ijazah: String(form.nomor_ijazah),
           operator_name: form.operator_name,
         },
         file: file && file.size ? file : null,
@@ -193,7 +199,7 @@ export default function AdminAddCertificate() {
 
       setPda(res.pda);
       setFileUriSaved(res.fileUri || "");
-      setSuccessMsg("Certificate saved to Solana Devnet 🎉");
+      setSuccessMsg("Certificate saved to Solana 🎉");
       setStep(2);
     } catch (e2) {
       setError(e2.message || "Failed to save the certificate.");
@@ -239,58 +245,49 @@ export default function AdminAddCertificate() {
     setStep(0);
   };
 
-  // Excel 
-  const toSafeString = (value) => {
-    if (value == null) return '';
-    return String(value).trim();
-  };
-  const [excelRows, setExcelRows] = useState([]); // All parsed rows
-  const [selectedRowIndex, setSelectedRowIndex] = useState(-1); // -1 = none selected
+  // Excel helpers
+  const [excelRows, setExcelRows] = useState([]);
+  const [selectedRowIndex, setSelectedRowIndex] = useState(-1);
   const handleExcelImport = (e) => {
-  const file = e.target.files?.[0];
-  if (!file) return;
+    const file = e.target.files?.[0];
+    if (!file) return;
 
-  const reader = new FileReader();
-  reader.onload = (event) => {
-    try {
-      const data = new Uint8Array(event.target.result);
-      const workbook = XLSX.read(data, { type: 'array' });
-      const sheetName = workbook.SheetNames[0];
-      const worksheet = workbook.Sheets[sheetName];
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const data = new Uint8Array(event.target.result);
+        const workbook = XLSX.read(data, { type: "array" });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
 
-      // Convert to array of objects (first row = headers)
-      const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+        if (jsonData.length < 2) {
+          alert("File must contain at least one header row and one data row.");
+          return;
+        }
 
-      if (jsonData.length < 2) {
-        alert("File must contain at least one header row and one data row.");
-        return;
-      }
-
-      const headers = jsonData[0].map(h => h?.toString().trim() || "");
-      const rows = jsonData.slice(1).map(row => {
-        const obj = {};
-        headers.forEach((header, i) => {
-          obj[header] = row[i] !== undefined ? row[i] : "";
+        const headers = jsonData[0].map((h) => h?.toString().trim() || "");
+        const rows = jsonData.slice(1).map((row) => {
+          const obj = {};
+          headers.forEach((header, i) => {
+            obj[header] = row[i] !== undefined ? row[i] : "";
+          });
+          return obj;
         });
-        return obj;
-      });
 
-      setExcelRows(rows);
-      setSelectedRowIndex(-1); // Reset selection
-
-      // Optional: scroll to preview
-      setTimeout(() => {
-        document.getElementById('excel-preview')?.scrollIntoView({ behavior: 'smooth' });
-      }, 100);
-
-    } catch (err) {
-      console.error(err);
-      alert("❌ Failed to parse Excel file. Please check format.");
-    }
+        setExcelRows(rows);
+        setSelectedRowIndex(-1);
+        setTimeout(() => {
+          document.getElementById("excel-preview")?.scrollIntoView({ behavior: "smooth" });
+        }, 100);
+      } catch (err) {
+        console.error(err);
+        alert("❌ Failed to parse Excel file. Please check format.");
+      }
+    };
+    reader.readAsArrayBuffer(file);
+    e.target.value = null; // allow re-upload
   };
-  reader.readAsArrayBuffer(file);
-  e.target.value = null; // Allow re-upload
-};
 
   return (
     <div className="mx-auto max-w-6xl px-4 sm:px-6">
@@ -301,7 +298,7 @@ export default function AdminAddCertificate() {
             Add Academic Certificate
           </h1>
           <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
-            Store a student certificate on <span className="font-semibold">Solana Devnet</span>.
+            Store a student certificate on <span className="font-semibold">Solana</span>.
           </p>
         </div>
 
@@ -311,7 +308,7 @@ export default function AdminAddCertificate() {
         </span>
       </div>
 
-      {/* Preview Excel */}
+      {/* Excel Preview */}
       {excelRows.length > 0 && (
         <div
           id="excel-preview"
@@ -326,11 +323,7 @@ export default function AdminAddCertificate() {
               <thead className="sticky top-0 z-10 bg-white/70 text-xs uppercase tracking-wide text-gray-700 backdrop-blur dark:bg-slate-900/60 dark:text-gray-300">
                 <tr>
                   {Object.keys(excelRows[0]).map((key) => (
-                    <th
-                      key={key}
-                      className="px-3 py-2 text-left font-semibold"
-                      title={key}
-                    >
+                    <th key={key} className="px-3 py-2 text-left font-semibold" title={key}>
                       {key}
                     </th>
                   ))}
@@ -347,13 +340,13 @@ export default function AdminAddCertificate() {
                       onClick={() => {
                         setSelectedRowIndex(idx);
                         const mapped = {
-                          nama: row["Nama"] || row["nama"] || "",
-                          nim: row["Nim"] || row["nim"] || "",
-                          program_studi: row["Program Studi"] || row["program studi"] || "",
-                          universitas: row["Universitas"] || row["universitas"] || "",
-                          kode_batch: row["Kode Batch"] || row["kode batch"] || "",
-                          nomor_ijazah: row["Nomor Ijasah"] || row["nomor ijasah"] || "",
-                          operator_name: row["Petugas Operator"] || row["petugas operator"] || "",
+                            nama: String(row["Nama"] ?? row["nama"] ?? "").trim(),
+                            nim: String(row["Nim"] ?? row["nim"] ?? "").trim(),
+                            program_studi: String(row["Program Studi"] ?? row["program studi"] ?? "").trim(),
+                            universitas: String(row["Universitas"] ?? row["universitas"] ?? "").trim(),
+                            kode_batch: String(row["Kode Batch"] ?? row["kode batch"] ?? "").trim(),
+                            nomor_ijazah: String(row["Nomor Ijasah"] ?? row["nomor ijasah"] ?? "").trim(),
+                            operator_name: String(row["Petugas Operator"] ?? row["petugas operator"] ?? "").trim(),
                         };
                         setForm((prev) => ({ ...prev, ...mapped }));
                       }}
@@ -375,13 +368,13 @@ export default function AdminAddCertificate() {
                             e.stopPropagation();
                             setSelectedRowIndex(idx);
                             const mapped = {
-                              nama: row["Nama"] || row["nama"] || "",
-                              nim: row["Nim"] || row["nim"] || "",
-                              program_studi: row["Program Studi"] || row["program studi"] || "",
-                              universitas: row["Universitas"] || row["universitas"] || "",
-                              kode_batch: row["Kode Batch"] || row["kode batch"] || "",
-                              nomor_ijazah: row["Nomor Ijasah"] || row["nomor ijasah"] || "",
-                              operator_name: row["Petugas Operator"] || row["petugas operator"] || "",
+                              nama: String(row["Nama"] ?? row["nama"] ?? "").trim(),
+                              nim: String(row["Nim"] ?? row["nim"] ?? "").trim(),
+                              program_studi: String(row["Program Studi"] ?? row["program studi"] ?? "").trim(),
+                              universitas: String(row["Universitas"] ?? row["universitas"] ?? "").trim(),
+                              kode_batch: String(row["Kode Batch"] ?? row["kode batch"] ?? "").trim(),
+                              nomor_ijazah: String(row["Nomor Ijasah"] ?? row["nomor ijasah"] ?? "").trim(),
+                              operator_name: String(row["Petugas Operator"] ?? row["petugas operator"] ?? "").trim(),
                             };
                             setForm((prev) => ({ ...prev, ...mapped }));
                           }}
@@ -403,19 +396,13 @@ export default function AdminAddCertificate() {
         </div>
       )}
 
-
-      {/* Excel Button */}
+      {/* Import Excel Button */}
       <label className="inline-flex items-center gap-2 rounded-md bg-gray-100 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-200 dark:bg-slate-800 dark:text-gray-300 dark:hover:bg-slate-700 cursor-pointer">
         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
         </svg>
         Import from Excel
-        <input
-          type="file"
-          accept=".xlsx,.xls,.csv"
-          onChange={handleExcelImport}
-          className="hidden"
-        />
+        <input type="file" accept=".xlsx,.xls,.csv" onChange={handleExcelImport} className="hidden" />
       </label>
 
       {/* Wallet panel */}
@@ -527,7 +514,7 @@ export default function AdminAddCertificate() {
                   name="nim"
                   value={form.nim}
                   onChange={onChange}
-                  placeholder="e.g. 21-ABC-1234"
+                  placeholder="e.g. 21-IF-001"
                   required
                   className="mt-1 block w-full rounded-lg border border-white/20 bg-white/70 px-3 py-2 text-gray-900 shadow-sm backdrop-blur dark:border-white/10 dark:bg-slate-900/50 dark:text-white focus:outline-none focus:ring-2 focus:ring-cyan-400/60"
                 />
@@ -737,11 +724,11 @@ export default function AdminAddCertificate() {
 
                 <div className={`${panelCard} p-2`}>
                   <div className="aspect-[4/3] w-full overflow-hidden rounded-xl">
-                    {isImage(file.type) && filePreview ? (
+                    {isImage(file?.type) && filePreview ? (
                       <img src={filePreview} alt="Preview" className="h-full w-full object-cover" />
                     ) : (
                       <div className="flex h-full w-full items-center justify-center text-xs text-gray-500 dark:text-gray-400">
-                        {file.type?.includes("pdf") ? "PDF selected" : "No image preview"}
+                        {file?.type?.includes("pdf") ? "PDF selected" : "No image preview"}
                       </div>
                     )}
                   </div>

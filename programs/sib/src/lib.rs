@@ -6,11 +6,26 @@ declare_id!("HqJ3a7UwwxjorwDJUYMAWBC8Q4fRzqF47Pgq5fjr3D1F");
 pub mod sib {
     use super::*;
 
-    /// Create a new certificate (Ijazah).
-    /// - management = uploader wallet (Signer)
-    /// - operator_pubkey = same as uploader
-    /// - operator_name = human-readable
-    /// - file_uri + file_hash (SHA-256) for the document
+    /// Initialize AdminRegistry PDA with a super admin.
+    pub fn init_admin_registry(ctx: Context<InitAdminRegistry>, super_admin: Pubkey) -> Result<()> {
+        let reg = &mut ctx.accounts.admin_registry;
+        reg.super_admin = super_admin;
+        reg.admins = Vec::with_capacity(AdminRegistry::MAX);
+        reg.bump = ctx.bumps.admin_registry;
+        Ok(())
+    }
+
+    /// Add an admin (only super_admin can call).
+    pub fn add_admin(ctx: Context<SetAdmin>, new_admin: Pubkey) -> Result<()> {
+        ctx.accounts.admin_registry.add_admin(new_admin)
+    }
+
+    /// Remove an admin (only super_admin can call).
+    pub fn remove_admin(ctx: Context<SetAdmin>, old_admin: Pubkey) -> Result<()> {
+        ctx.accounts.admin_registry.remove_admin(old_admin);
+        Ok(())
+    }
+
     pub fn add_certificate(
         ctx: Context<AddCertificate>,
         program_studi: String,
@@ -23,7 +38,13 @@ pub mod sib {
         file_uri: String,
         file_hash: [u8; 32],
     ) -> Result<()> {
-        // Length caps must match allocated space
+        require!(
+            ctx.accounts
+                .admin_registry
+                .is_admin(&ctx.accounts.operator.key()),
+            SibError::NotAuthorized
+        );
+
         require!(program_studi.len() <= Certificate::FIELD_64, SibError::StringTooLong);
         require!(universitas.len()   <= Certificate::FIELD_64, SibError::StringTooLong);
         require!(kode_batch.len()    <= Certificate::FIELD_32, SibError::StringTooLong);
@@ -35,7 +56,7 @@ pub mod sib {
 
         let cert = &mut ctx.accounts.certificate;
 
-        cert.bump = ctx.bumps.certificate;
+        cert.bump             = ctx.bumps.certificate;
         cert.management       = ctx.accounts.operator.key();
         cert.operator_pubkey  = ctx.accounts.operator.key();
         cert.operator_name    = operator_name;
@@ -54,22 +75,50 @@ pub mod sib {
         Ok(())
     }
 
-    /// Update/attach file later (only the same uploader wallet).
     pub fn update_file(
-        _ctx: Context<UpdateFile>,
+        ctx: Context<UpdateFile>,
         new_uri: String,
         new_hash: [u8; 32],
     ) -> Result<()> {
         require!(new_uri.len() <= Certificate::URI_MAX, SibError::StringTooLong);
 
-        let cert = &mut _ctx.accounts.certificate;
+        let cert = &mut ctx.accounts.certificate;
         cert.file_uri = new_uri;
         cert.file_hash = new_hash;
         Ok(())
     }
 }
 
-/* ------------------------------- ACCOUNTS ---------------------------------- */
+
+#[derive(Accounts)]
+pub struct InitAdminRegistry<'info> {
+    #[account(
+        init,
+        payer = payer,
+        space = 8 + AdminRegistry::SIZE,
+        seeds = [b"admin",],
+        bump
+    )]
+    pub admin_registry: Account<'info, AdminRegistry>,
+
+    #[account(mut)]
+    pub payer: Signer<'info>,
+
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct SetAdmin<'info> {
+    #[account(
+        mut,
+        seeds = [b"admin"],
+        bump = admin_registry.bump,
+        constraint = super_admin.key() == admin_registry.super_admin @ SibError::NotAuthorized
+    )]
+    pub admin_registry: Account<'info, AdminRegistry>,
+
+    pub super_admin: Signer<'info>,
+}
 
 #[derive(Accounts)]
 #[instruction(
@@ -92,8 +141,14 @@ pub struct AddCertificate<'info> {
     )]
     pub certificate: Account<'info, Certificate>,
 
+    #[account(
+        seeds = [b"admin"],
+        bump = admin_registry.bump
+    )]
+    pub admin_registry: Account<'info, AdminRegistry>,
+
     #[account(mut)]
-    pub operator: Signer<'info>, // uploader = management
+    pub operator: Signer<'info>,
 
     pub system_program: Program<'info, System>,
 }
@@ -110,7 +165,39 @@ pub struct UpdateFile<'info> {
     pub operator: Signer<'info>,
 }
 
-/* --------------------------------- STATE ----------------------------------- */
+#[account]
+pub struct AdminRegistry {
+    pub super_admin: Pubkey,
+    pub admins: Vec<Pubkey>, // dynamic, but capped by MAX in logic
+    pub bump: u8,
+}
+
+impl AdminRegistry {
+    pub const MAX: usize = 64;
+    pub const SIZE: usize = 32 
+        + 4 + (32 * Self::MAX)
+        + 1 ;
+
+    pub fn is_admin(&self, who: &Pubkey) -> bool {
+        if *who == self.super_admin {
+            return true;
+        }
+        self.admins.iter().any(|k| k == who)
+    }
+
+    pub fn add_admin(&mut self, who: Pubkey) -> Result<()> {
+        require!(self.admins.len() < Self::MAX, SibError::AdminListFull);
+        if self.admins.iter().any(|k| *k == who) {
+            return Ok(());
+        }
+        self.admins.push(who);
+        Ok(())
+    }
+
+    pub fn remove_admin(&mut self, who: Pubkey) {
+        self.admins.retain(|k| *k != who);
+    }
+}
 
 #[account]
 pub struct Certificate {
@@ -153,12 +240,14 @@ impl Certificate {
         1;                              // bump
 }
 
-/* --------------------------------- ERRORS ---------------------------------- */
+
 
 #[error_code]
 pub enum SibError {
     #[msg("Provided string exceeds the allowed maximum length for its field.")]
     StringTooLong,
-    #[msg("You are not authorized to modify this certificate.")]
+    #[msg("You are not authorized to perform this action.")]
     NotAuthorized,
+    #[msg("Admin list is full.")]
+    AdminListFull,
 }
